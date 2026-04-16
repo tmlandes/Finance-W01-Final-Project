@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loan Amortization Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #eef4ff;
+      --surface:   #ffffff;
+      --card:      #ffffff;
+      --border:    #bdd0f0;
+      --accent:    #2563eb;
+      --accent2:   #1e40af;
+      --green:     #0369a1;
+      --amber:     #0284c7;
+      --red:       #1d4ed8;
+      --text:      #0c1f3f;
+      --muted:     #4a6fa5;
+      --radius:    12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+
+    /* ── Header ── */
+    header {
+      max-width: 1100px;
+      margin: 0 auto 32px;
+    }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-top: 4px;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+    }
+
+    .top-row {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 820px) {
+      .top-row { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .card-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* ── Inputs ── */
+    .field { margin-bottom: 18px; }
+    .field:last-child { margin-bottom: 0; }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-prefix, .input-suffix {
+      position: absolute;
+      font-size: 0.85rem;
+      color: var(--muted);
+      pointer-events: none;
+      user-select: none;
+    }
+    .input-prefix { left: 12px; }
+    .input-suffix { right: 12px; }
+    input[type="number"], input[type="date"], select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button { display: none; }
+    input[type="number"].has-prefix { padding-left: 28px; }
+    input[type="number"].has-suffix { padding-right: 36px; }
+    input:focus, select:focus { border-color: var(--accent); }
+    select { cursor: pointer; }
+    select option { background: var(--surface); }
+
+    .calc-btn {
+      width: 100%;
+      margin-top: 22px;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .calc-btn:hover { opacity: 0.9; }
+    .calc-btn:active { transform: scale(0.98); }
+
+    /* ── Summary stats ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .stat-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .stat-value.blue   { color: var(--accent); }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.amber  { color: var(--amber); }
+    .stat-value.purple { color: #a78bfa; }
+
+    .breakdown-bar {
+      margin-top: 20px;
+    }
+    .breakdown-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .bar-track {
+      height: 10px;
+      border-radius: 99px;
+      background: var(--surface);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.5s ease;
+    }
+
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ── Table ── */
+    .table-section { overflow: hidden; }
+    .table-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .table-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .toggle-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.78rem;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .toggle-btn:hover { border-color: var(--accent); }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+    thead th {
+      background: var(--surface);
+      padding: 11px 14px;
+      text-align: right;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    thead th:first-child, thead th:nth-child(2) { text-align: left; }
+
+    tbody tr { transition: background 0.1s; }
+    tbody tr:hover { background: rgba(37, 99, 235, 0.06); }
+    tbody tr:last-child td { border-bottom: none; }
+    td {
+      padding: 9px 14px;
+      text-align: right;
+      border-bottom: 1px solid rgba(189, 208, 240, 0.8);
+      color: var(--text);
+    }
+    td:first-child, td:nth-child(2) { text-align: left; color: var(--muted); }
+    td.principal  { color: var(--accent); font-weight: 600; }
+    td.interest   { color: var(--amber); }
+    td.balance    { color: var(--text); }
+    td.cum-int    { color: var(--muted); font-size: 0.78rem; }
+    td.int-saved  { color: var(--green); font-weight: 600; }
+    .hide-int-saved th.col-int-saved,
+    .hide-int-saved td.col-int-saved { display: none; }
+
+    /* Yearly summary row */
+    tr.year-row td {
+      background: rgba(37, 99, 235, 0.07);
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 700;
+      border-bottom: 2px solid var(--border);
+    }
+
+    tfoot td {
+      background: var(--surface);
+      padding: 11px 14px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      border-top: 2px solid var(--border);
+    }
+    tfoot td.total-principal { color: var(--accent); }
+    tfoot td.total-interest  { color: var(--amber); }
+
+    .hidden { display: none !important; }
+
+    /* ── Chart ── */
+    #amortChart { display: block; }
+    .chart-legend {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin-top: 14px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .legend-swatch {
+      display: inline-block;
+      width: 20px;
+      height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Loan Amortization Calculator</h1>
+  <p>Enter loan details to generate a full payment schedule with principal &amp; interest breakdown.</p>
+</header>
+
+<div class="layout">
+
+  <!-- TOP ROW: Inputs + Summary -->
+  <div class="top-row">
+
+    <!-- Inputs -->
+    <div class="card">
+      <div class="card-title">Loan Parameters</div>
+
+      <div class="field">
+        <label for="principal">Loan Amount</label>
+        <div class="input-wrap">
+          <span class="input-prefix">$</span>
+          <input type="number" id="principal" class="has-prefix" value="300000" min="1" step="1000">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="rate">Annual Interest Rate</label>
+        <div class="input-wrap">
+          <input type="number" id="rate" class="has-suffix" value="6.5" min="0.01" max="99" step="0.01">
+          <span class="input-suffix">%</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="term">Loan Term</label>
+        <div class="input-wrap" style="gap:10px">
+          <input type="number" id="term" value="30" min="1" max="50" step="1" style="flex:1">
+          <select id="termUnit" style="width:120px; flex-shrink:0">
+            <option value="years" selected>Years</option>
+            <option value="months">Months</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="freq">Payment Frequency</label>
+        <select id="freq">
+          <option value="monthly" selected>Monthly (12/yr)</option>
+          <option value="biweekly">Bi-Weekly (26/yr)</option>
+          <option value="weekly">Weekly (52/yr)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="extra">Extra Payment per Period</label>
+        <div class="input-wrap">
+          <span class="input-prefix">$</span>
+          <input type="number" id="extra" class="has-prefix" value="0" min="0" step="50">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="startDate">First Payment Date</label>
+        <input type="date" id="startDate">
+      </div>
+
+      <button class="calc-btn" onclick="calculate()">Calculate Schedule</button>
+    </div>
+
+    <!-- Summary -->
+    <div class="card" id="summaryCard">
+      <div class="card-title">Summary</div>
+      <div id="summaryContent" class="placeholder">
+        Fill in the loan parameters and click<br><strong>Calculate Schedule</strong> to see results.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Chart -->
+  <div class="card" id="chartCard" style="display:none">
+    <div class="card-title">Balance &amp; Interest Over Time</div>
+    <canvas id="amortChart"></canvas>
+    <div class="chart-legend">
+      <span class="legend-item">
+        <span class="legend-swatch" style="background:#2563eb"></span>Remaining Balance
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch" style="background:#0284c7"></span>Cumulative Interest
+      </span>
+    </div>
+  </div>
+
+  <!-- Schedule Table -->
+  <div class="card table-section" id="scheduleCard" style="display:none">
+    <div class="table-controls">
+      <div>
+        <div class="card-title" style="margin-bottom:2px">Amortization Schedule</div>
+        <div class="table-note" id="tableNote"></div>
+      </div>
+      <button class="toggle-btn" id="yearToggle" onclick="toggleYearRows()">Hide Year Summaries</button>
+      <button class="toggle-btn" id="intSavedToggle" onclick="toggleIntSaved()" style="display:none">Hide Int. Saved</button>
+    </div>
+    <div class="table-wrap">
+      <table id="schedTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Payment</th>
+            <th>Principal</th>
+            <th>Interest</th>
+            <th>Balance</th>
+            <th>Cum. Interest</th>
+            <th class="col-int-saved">Int. Saved</th>
+          </tr>
+        </thead>
+        <tbody id="schedBody"></tbody>
+        <tfoot id="schedFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────
+const fmt  = n => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const fmtN = n => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const pct  = n => n.toFixed(4) + '%';
+
+function addPeriods(date, n, freq) {
+  const d = new Date(date);
+  if (freq === 'monthly') {
+    d.setMonth(d.getMonth() + n);
+  } else if (freq === 'biweekly') {
+    d.setDate(d.getDate() + n * 14);
+  } else {
+    d.setDate(d.getDate() + n * 7);
+  }
+  return d;
+}
+
+function fmtDate(d) {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ─────────────────────────────────────────────
+//  Core amortization formula
+//
+//  Periodic rate:  r = annualRate / periodsPerYear
+//  Payment:        P * r * (1+r)^n / ((1+r)^n - 1)
+//
+//  Each period:
+//    Interest  = balance × r
+//    Principal = payment − interest  (+ extra)
+//    Balance   = balance − principal
+// ─────────────────────────────────────────────
+function buildSchedule({ principal, annualRate, totalPeriods, periodsPerYear, extraPerPeriod, startDate, freq }) {
+  const r = annualRate / 100 / periodsPerYear;
+  const n = totalPeriods;
+
+  // Standard periodic payment (fixed annuity formula)
+  let payment;
+  if (r === 0) {
+    payment = principal / n;
+  } else {
+    const factor = Math.pow(1 + r, n);
+    payment = principal * r * factor / (factor - 1);
+  }
+
+  const rows = [];
+  let balance       = principal;
+  let cumInterest   = 0;
+  let totalPaid     = 0;
+  let totalInterest = 0;
+  let totalPrincipal = 0;
+
+  for (let i = 1; i <= n; i++) {
+    if (balance <= 0) break;
+
+    const interestDue = balance * r;
+    let principalDue;
+
+    // On the final period, set principal = exact remaining balance (no recalculation)
+    const isFinalPeriod = i === n || (payment - interestDue + extraPerPeriod) >= balance;
+    if (isFinalPeriod) {
+      principalDue = balance;
+    } else {
+      principalDue = payment - interestDue;
+      principalDue += Math.min(extraPerPeriod, balance - principalDue);
+    }
+    const actualPayment = principalDue + interestDue;
+
+    balance       -= principalDue;
+    cumInterest   += interestDue;
+    totalPaid     += actualPayment;
+    totalInterest += interestDue;
+    totalPrincipal += principalDue;
+
+    const date = startDate ? addPeriods(startDate, i - 1, freq) : null;
+
+    rows.push({
+      num:       i,
+      date,
+      payment:   actualPayment,
+      principal: principalDue,
+      interest:  interestDue,
+      balance:   Math.max(0, balance),
+      cumInterest,
+    });
+
+    if (balance < 0.005) break; // fully paid
+  }
+
+  return { rows, payment, totalPaid, totalInterest, totalPrincipal, r, periodsPerYear };
+}
+
+// ─────────────────────────────────────────────
+//  APR note: for simple amortization with no
+//  fees, APR equals the nominal annual rate.
+//  Effective annual rate = (1 + r)^m − 1
+// ─────────────────────────────────────────────
+function effectiveAPR(r, m) {
+  return (Math.pow(1 + r, m) - 1) * 100;
+}
+
+// ─────────────────────────────────────────────
+//  UI
+// ─────────────────────────────────────────────
+let showYearRows = true;
+
+function toggleYearRows() {
+  showYearRows = !showYearRows;
+  document.querySelectorAll('.year-row').forEach(r => {
+    r.classList.toggle('hidden', !showYearRows);
+  });
+  document.getElementById('yearToggle').textContent =
+    showYearRows ? 'Hide Year Summaries' : 'Show Year Summaries';
+}
+
+let showIntSaved = true;
+function toggleIntSaved() {
+  showIntSaved = !showIntSaved;
+  document.getElementById('schedTable').classList.toggle('hide-int-saved', !showIntSaved);
+  document.getElementById('intSavedToggle').textContent =
+    showIntSaved ? 'Hide Int. Saved' : 'Show Int. Saved';
+}
+
+// Set default start date to next month
+(function setDefaultDate() {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  d.setDate(1);
+  document.getElementById('startDate').value = d.toISOString().split('T')[0];
+})();
+
+function periodsPerYear(freq) {
+  return freq === 'monthly' ? 12 : freq === 'biweekly' ? 26 : 52;
+}
+
+function calculate() {
+  const principal       = parseFloat(document.getElementById('principal').value);
+  const annualRate      = parseFloat(document.getElementById('rate').value);
+  const termVal         = parseFloat(document.getElementById('term').value);
+  const termUnit        = document.getElementById('termUnit').value;
+  const freq            = document.getElementById('freq').value;
+  const extraPerPeriod  = parseFloat(document.getElementById('extra').value) || 0;
+  const startDateInput  = document.getElementById('startDate').value;
+
+  // Validate
+  if (!principal || !annualRate || !termVal) {
+    alert('Please fill in all required fields.');
+    return;
+  }
+
+  const ppy         = periodsPerYear(freq);
+  const totalMonths = termUnit === 'years' ? termVal * 12 : termVal;
+  // Convert term in months → periods for given frequency
+  const totalPeriods = Math.round(totalMonths * ppy / 12);
+
+  const startDate = startDateInput ? new Date(startDateInput + 'T12:00:00') : null;
+
+  const result = buildSchedule({
+    principal, annualRate, totalPeriods, periodsPerYear: ppy,
+    extraPerPeriod, startDate, freq
+  });
+
+  const baselineResult = extraPerPeriod > 0
+    ? buildSchedule({ principal, annualRate, totalPeriods, periodsPerYear: ppy, extraPerPeriod: 0, startDate, freq })
+    : null;
+
+  renderSummary(result, principal, annualRate, totalMonths, freq, extraPerPeriod);
+  renderChart(result, principal, extraPerPeriod, baselineResult);
+  renderTable(result, freq, baselineResult);
+}
+
+function renderSummary(result, principal, annualRate, totalMonths, freq, extra) {
+  const { rows, payment, totalPaid, totalInterest, totalPrincipal, r, periodsPerYear: ppy } = result;
+  const ear        = effectiveAPR(r, ppy);
+  const interestPct = (totalInterest / totalPaid * 100);
+  const actualPeriods = rows.length;
+
+  // If extra payments shorten the loan, compute saved months
+  const origPeriods = Math.round(totalMonths * ppy / 12);
+  const savedPeriods = origPeriods - actualPeriods;
+
+  const html = `
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-label">Periodic Payment</div>
+        <div class="stat-value blue">${fmt(payment)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Total Cost</div>
+        <div class="stat-value">${fmt(totalPaid)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Total Interest</div>
+        <div class="stat-value amber">${fmt(totalInterest)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Effective APR</div>
+        <div class="stat-value purple">${ear.toFixed(4)}%</div>
+      </div>
+    </div>
+
+    <div class="breakdown-bar">
+      <div class="breakdown-bar-label">
+        <span>Principal ${(100 - interestPct).toFixed(1)}%</span>
+        <span>Interest ${interestPct.toFixed(1)}%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${100 - interestPct}%"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:0.8rem;">
+      <div>
+        <div style="color:var(--muted);margin-bottom:3px">Loan Amount</div>
+        <div style="font-weight:600">${fmt(principal)}</div>
+      </div>
+      <div>
+        <div style="color:var(--muted);margin-bottom:3px">Annual Rate</div>
+        <div style="font-weight:600">${annualRate}%</div>
+      </div>
+      <div>
+        <div style="color:var(--muted);margin-bottom:3px">Payments</div>
+        <div style="font-weight:600">${actualPeriods} ${freq === 'monthly' ? 'monthly' : freq === 'biweekly' ? 'bi-weekly' : 'weekly'}</div>
+      </div>
+      <div>
+        <div style="color:var(--muted);margin-bottom:3px">Periodic Rate</div>
+        <div style="font-weight:600">${(r * 100).toFixed(6)}%</div>
+      </div>
+      ${extra > 0 ? `
+      <div style="grid-column:span 2;background:rgba(3,105,161,0.08);border:1px solid rgba(3,105,161,0.25);border-radius:8px;padding:10px;color:var(--green)">
+        Extra $${extra.toFixed(2)}/period saves <strong>${fmt(totalInterest)}</strong> in interest
+        and pays off <strong>${savedPeriods} period${savedPeriods !== 1 ? 's' : ''}</strong> early.
+      </div>` : ''}
+    </div>
+  `;
+
+  document.getElementById('summaryContent').innerHTML = html;
+}
+
+function renderTable(result, freq, baselineResult) {
+  const { rows } = result;
+  const body = document.getElementById('schedBody');
+  const foot = document.getElementById('schedFoot');
+
+  body.innerHTML = '';
+  foot.innerHTML = '';
+
+  const baseRows = baselineResult ? baselineResult.rows : null;
+  const freqLabel = freq === 'monthly' ? 'month' : freq === 'biweekly' ? 'bi-weekly' : 'week';
+
+  let yearPrincipal = 0, yearInterest = 0, yearPayment = 0, yearIntSaved = 0;
+  let curYear = rows[0]?.date ? rows[0].date.getFullYear() : null;
+  let yearNum = 1;
+
+  let grandPrincipal = 0, grandInterest = 0, grandPayment = 0, grandIntSaved = 0;
+
+  rows.forEach((row, idx) => {
+    const rowYear = row.date ? row.date.getFullYear() : Math.ceil(row.num / (freq === 'monthly' ? 12 : freq === 'biweekly' ? 26 : 52));
+
+    const interestSaved = baseRows && row.num <= baseRows.length
+      ? baseRows[row.num - 1].interest - row.interest : 0;
+
+    yearPrincipal += row.principal;
+    yearInterest  += row.interest;
+    yearPayment   += row.payment;
+    yearIntSaved  += interestSaved;
+    grandPrincipal += row.principal;
+    grandInterest  += row.interest;
+    grandPayment   += row.payment;
+    grandIntSaved  += interestSaved;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${row.num}</td>
+      <td>${row.date ? fmtDate(row.date) : '—'}</td>
+      <td>${fmtN(row.payment)}</td>
+      <td class="principal">${fmtN(row.principal)}</td>
+      <td class="interest">${fmtN(row.interest)}</td>
+      <td class="balance">${fmtN(row.balance)}</td>
+      <td class="cum-int">${fmtN(row.cumInterest)}</td>
+      <td class="col-int-saved int-saved">${baseRows ? fmtN(Math.max(0, interestSaved)) : '—'}</td>
+    `;
+    body.appendChild(tr);
+
+    // Year summary row
+    const isLastRow     = idx === rows.length - 1;
+    const nextRow       = rows[idx + 1];
+    const nextRowYear   = nextRow?.date ? nextRow.date.getFullYear()
+                        : Math.ceil((idx + 2) / (freq === 'monthly' ? 12 : freq === 'biweekly' ? 26 : 52));
+    const yearChanged   = curYear !== null ? (nextRow && rowYear !== nextRowYear) : false;
+    const monthlyBlock  = curYear === null && row.num % (freq === 'monthly' ? 12 : freq === 'biweekly' ? 26 : 52) === 0;
+
+    if (yearChanged || monthlyBlock || isLastRow) {
+      const yLabel = curYear !== null ? `Year ${curYear}` : `Year ${yearNum}`;
+      const yr = document.createElement('tr');
+      yr.className = 'year-row';
+      yr.innerHTML = `
+        <td colspan="2">${yLabel} — Annual Totals</td>
+        <td>${fmtN(yearPayment)}</td>
+        <td class="principal">${fmtN(yearPrincipal)}</td>
+        <td class="interest">${fmtN(yearInterest)}</td>
+        <td colspan="2"></td>
+        <td class="col-int-saved int-saved">${baseRows ? fmtN(Math.max(0, yearIntSaved)) : ''}</td>
+      `;
+      body.appendChild(yr);
+      yearPrincipal = yearInterest = yearPayment = yearIntSaved = 0;
+      yearNum++;
+      if (nextRow) curYear = nextRow.date ? nextRow.date.getFullYear() : null;
+    }
+  });
+
+  // Footer totals
+  foot.innerHTML = `
+    <tr>
+      <td colspan="2">Totals</td>
+      <td>${fmtN(grandPayment)}</td>
+      <td class="total-principal">${fmtN(grandPrincipal)}</td>
+      <td class="total-interest">${fmtN(grandInterest)}</td>
+      <td colspan="2"></td>
+      <td class="col-int-saved int-saved">${baseRows ? fmtN(Math.max(0, grandIntSaved)) : ''}</td>
+    </tr>
+  `;
+
+  document.getElementById('tableNote').textContent =
+    `${rows.length} payment${rows.length !== 1 ? 's' : ''} shown — all amounts in USD`;
+
+  document.getElementById('scheduleCard').style.display = '';
+
+  // Reset year-row visibility
+  showYearRows = true;
+  document.getElementById('yearToggle').textContent = 'Hide Year Summaries';
+  document.querySelectorAll('.year-row').forEach(r => r.classList.remove('hidden'));
+
+  // Show/reset Interest Saved column
+  showIntSaved = true;
+  const table = document.getElementById('schedTable');
+  table.classList.toggle('hide-int-saved', !baseRows);
+  const intSavedBtn = document.getElementById('intSavedToggle');
+  intSavedBtn.style.display = baseRows ? '' : 'none';
+  intSavedBtn.textContent = 'Hide Int. Saved';
+}
+
+// ─────────────────────────────────────────────
+//  Chart
+// ─────────────────────────────────────────────
+let _chartData = null;
+
+function renderChart(result, principal, extra, baselineResult) {
+  _chartData = { result, principal, extra, baselineResult };
+  _drawChart(result, principal, extra, baselineResult);
+}
+
+function _drawChart(result, principal, extra, baselineResult) {
+  const { rows } = result;
+  const hasBaseline = extra > 0 && baselineResult;
+
+  // Update legend
+  document.querySelector('.chart-legend').innerHTML = hasBaseline ? `
+    <span class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span>Remaining Balance</span>
+    <span class="legend-item"><span class="legend-swatch" style="background:#0284c7"></span>Cumulative Interest</span>
+    <span class="legend-item"><span class="legend-swatch" style="background:rgba(37,99,235,0.3)"></span>Baseline (no extra)</span>
+    <span class="legend-item"><span class="legend-swatch" style="background:rgba(3,105,161,0.25)"></span>Interest Saved</span>
+  ` : `
+    <span class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span>Remaining Balance</span>
+    <span class="legend-item"><span class="legend-swatch" style="background:#0284c7"></span>Cumulative Interest</span>
+  `;
+
+  const card = document.getElementById('chartCard');
+  card.style.display = '';
+
+  const canvas = document.getElementById('amortChart');
+  const dpr    = window.devicePixelRatio || 1;
+  const W      = canvas.parentElement.clientWidth;
+  const H      = 280;
+
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD = { top: 16, right: 20, bottom: 44, left: 72 };
+  const cW  = W - PAD.left - PAD.right;
+  const cH  = H - PAD.top  - PAD.bottom;
+
+  // Period-0 anchor; baseline may have more periods than actual (paid off early)
+  const pts     = [{ balance: principal, cumInterest: 0 }, ...rows];
+  const basePts = hasBaseline ? [{ balance: principal, cumInterest: 0 }, ...baselineResult.rows] : null;
+  const totalN  = basePts ? Math.max(pts.length, basePts.length) : pts.length;
+
+  const lastCumInt     = rows[rows.length - 1].cumInterest;
+  const baseLastCumInt = basePts ? basePts[basePts.length - 1].cumInterest : 0;
+  const yMax = chartNice(Math.max(principal, lastCumInt, baseLastCumInt));
+
+  const xOf = i => PAD.left + (i / (totalN - 1)) * cW;
+  const yOf = v => PAD.top  + (1 - Math.min(v, yMax) / yMax) * cH;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = "11px 'Segoe UI', system-ui, sans-serif";
+
+  // Grid + Y labels
+  const GRID = 5;
+  for (let g = 0; g <= GRID; g++) {
+    const val = yMax * g / GRID;
+    const y   = yOf(val);
+    ctx.setLineDash(g === 0 ? [] : [4, 3]);
+    ctx.strokeStyle = g === 0 ? '#bdd0f0' : 'rgba(189,208,240,0.55)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#4a6fa5';
+    ctx.textAlign = 'right';
+    ctx.fillText(chartFmt(val), PAD.left - 8, y + 4);
+  }
+
+  // X labels
+  const xLabels = Math.min(7, totalN - 1);
+  ctx.fillStyle = '#4a6fa5';
+  ctx.textAlign = 'center';
+  for (let k = 0; k <= xLabels; k++) {
+    const i = Math.round(k / xLabels * (totalN - 1));
+    ctx.fillText(i, xOf(i), PAD.top + cH + 16);
+  }
+  ctx.fillText('Payment #', PAD.left + cW / 2, PAD.top + cH + 32);
+
+  // ── Interest saved fill (area between actual and baseline cumulative interest) ──
+  if (basePts) {
+    const actualCumAt = i => i < pts.length     ? pts[i].cumInterest     : lastCumInt;
+    const baseCumAt   = i => i < basePts.length ? basePts[i].cumInterest : basePts[basePts.length - 1].cumInterest;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(xOf(0), yOf(0));
+    for (let i = 1; i < totalN; i++) ctx.lineTo(xOf(i), yOf(actualCumAt(i)));
+    for (let i = totalN - 1; i >= 0; i--) ctx.lineTo(xOf(i), yOf(baseCumAt(i)));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(3,105,161,0.13)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Baseline lines (dashed, faded) ──
+  if (basePts) {
+    const drawDashed = (color, getY, len) => {
+      ctx.save();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 1.5;
+      ctx.lineJoin    = 'round';
+      ctx.beginPath();
+      ctx.moveTo(xOf(0), getY(0));
+      for (let i = 1; i < len; i++) ctx.lineTo(xOf(i), getY(i));
+      ctx.stroke();
+      ctx.restore();
+    };
+    drawDashed('rgba(37,99,235,0.35)', i => yOf(basePts[i].balance),     basePts.length);
+    drawDashed('rgba(2,132,199,0.35)', i => yOf(basePts[i].cumInterest), basePts.length);
+  }
+
+  // ── Balance fill (actual) ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(pts[0].balance));
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(xOf(i), yOf(pts[i].balance));
+  ctx.lineTo(xOf(pts.length - 1), PAD.top + cH);
+  ctx.lineTo(xOf(0), PAD.top + cH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(37,99,235,0.07)';
+  ctx.fill();
+  ctx.restore();
+
+  // ── Balance line (actual) ──
+  ctx.beginPath();
+  ctx.strokeStyle = '#2563eb';
+  ctx.lineWidth   = 2.5;
+  ctx.lineJoin    = 'round';
+  ctx.moveTo(xOf(0), yOf(pts[0].balance));
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(xOf(i), yOf(pts[i].balance));
+  ctx.stroke();
+
+  // ── Cumulative interest line (actual) ──
+  ctx.beginPath();
+  ctx.strokeStyle = '#0284c7';
+  ctx.lineWidth   = 2.5;
+  ctx.lineJoin    = 'round';
+  ctx.moveTo(xOf(0), yOf(0));
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(xOf(i), yOf(pts[i].cumInterest));
+  ctx.stroke();
+}
+
+function chartNice(n) {
+  if (n <= 0) return 1;
+  const mag  = Math.pow(10, Math.floor(Math.log10(n)));
+  const norm = n / mag;
+  return (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+}
+
+function chartFmt(n) {
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
+  return '$' + Math.round(n);
+}
+
+window.addEventListener('resize', () => {
+  if (_chartData) _drawChart(_chartData.result, _chartData.principal, _chartData.extra, _chartData.baselineResult);
+});
+
+// Auto-calculate on load with defaults
+window.addEventListener('DOMContentLoaded', calculate);
+</script>
+</body>
+</html>
